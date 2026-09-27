@@ -1,0 +1,128 @@
+package com.axon.findgame.manager;
+
+import com.axon.findgame.FindGame;
+import org.bukkit.*;
+import org.bukkit.block.Block;
+
+import java.io.File;
+import java.util.Random;
+import java.util.UUID;
+
+public class WorldManager {
+
+    private final FindGame plugin;
+    private final Random random = new Random();
+
+    public WorldManager(FindGame plugin) {
+        this.plugin = plugin;
+    }
+
+    public World createArenaWorld() {
+        String prefix = plugin.getConfig().getString("arena-world-prefix", "fg_arena_");
+        String worldName = prefix + UUID.randomUUID().toString().substring(0, 8);
+        long seed = random.nextLong();
+
+        plugin.getLogger().info("Создаю мир: " + worldName + " (seed: " + seed + ")");
+
+        WorldCreator creator = new WorldCreator(worldName);
+        creator.environment(World.Environment.NORMAL);
+        creator.type(WorldType.NORMAL);
+        creator.seed(seed);
+        creator.generateStructures(false);
+
+        World world = creator.createWorld();
+
+        if (world != null) {
+            world.setDifficulty(Difficulty.NORMAL);
+            world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+            world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+            world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+            world.setGameRule(GameRule.KEEP_INVENTORY, true);
+            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+            world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
+            world.setGameRule(GameRule.DO_FIRE_TICK, false);
+            world.setGameRule(GameRule.MOB_GRIEFING, false);
+            world.setGameRule(GameRule.NATURAL_REGENERATION, true);
+            world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+            world.setTime(6000);
+            world.setStorm(false);
+            world.setThundering(false);
+        }
+
+        return world;
+    }
+
+    public void deleteWorld(World world) {
+        if (world == null) return;
+        String worldName = world.getName();
+        plugin.getLogger().info("Удаляю мир: " + worldName);
+
+        World fallback = Bukkit.getWorlds().getFirst();
+        for (var player : world.getPlayers()) player.teleport(fallback.getSpawnLocation());
+
+        Bukkit.unloadWorld(world, false);
+
+        File worldFolder = new File(Bukkit.getWorldContainer(), worldName);
+        deleteFolder(worldFolder);
+        plugin.getLogger().info("Мир " + worldName + " удалён.");
+    }
+
+    public void setupWorldBorder(World world, Location center, double size) {
+        WorldBorder border = world.getWorldBorder();
+        border.setCenter(center);
+        border.setSize(size);
+        border.setWarningDistance(10);
+        border.setWarningTime(5);
+        border.setDamageBuffer(2);
+        border.setDamageAmount(2.0);
+    }
+
+    public Location findSpawnLocation(World world) {
+        int x = 0, z = 0;
+        world.getChunkAt(0, 0).load(true);
+        int highestY = world.getHighestBlockYAt(x, z);
+        return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+    }
+
+    public Location chooseBombLocation(World world, Location spawnLocation) {
+        int halfSize = plugin.getConfig().getInt("arena-half-size", 1000);
+
+        for (int attempt = 0; attempt < 300; attempt++) {
+            int dx = random.nextInt(halfSize * 2 + 1) - halfSize;
+            int dz = random.nextInt(halfSize * 2 + 1) - halfSize;
+
+            if (Math.abs(dx) < 50 && Math.abs(dz) < 50) continue;
+
+            int x = spawnLocation.getBlockX() + dx;
+            int z = spawnLocation.getBlockZ() + dz;
+
+            world.getChunkAt(x >> 4, z >> 4).load(true);
+
+            int surfaceY = world.getHighestBlockYAt(x, z);
+            int depth = random.nextInt(4);
+            int bombY = surfaceY - depth;
+
+            if (bombY < world.getMinHeight() + 1) continue;
+
+            Block block = world.getBlockAt(x, bombY, z);
+            if (block.getType().isSolid() && !block.isLiquid()) return block.getLocation();
+        }
+
+        int fx = spawnLocation.getBlockX() + 200;
+        int fz = spawnLocation.getBlockZ() + 200;
+        world.getChunkAt(fx >> 4, fz >> 4).load(true);
+        int fy = world.getHighestBlockYAt(fx, fz);
+        return new Location(world, fx, fy, fz);
+    }
+
+    private void deleteFolder(File folder) {
+        if (!folder.exists()) return;
+        File[] files = folder.listFiles();
+        if (files != null) {
+            for (File file : files)
+                if (file.isDirectory()) deleteFolder(file);
+                else file.delete();
+        }
+        folder.delete();
+    }
+}

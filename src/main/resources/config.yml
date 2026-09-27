@@ -1,0 +1,114 @@
+# ===== FindGame v3.0 Configuration =====
+
+# --- Мир арены ---
+arena-world-prefix: "fg_arena_"
+arena-half-size: 1000
+world-border-size: 2000
+
+# --- Детектор ---
+detector-item: "COMPASS"
+detector-amount: 32
+detector-name: "<gradient:gold:yellow><bold>🔍 Детектор мин</bold></gradient>"
+detector-lore:
+  - "<gray>ПКМ по блоку — проверить"
+  - ""
+  - "<red>⚠ Не копайте блоки — взорвётесь!"
+
+# --- Крафт детектора ---
+# Форма крафта (3x3):
+#   R I R
+#   I D I
+#   R I R
+# R = REDSTONE, I = IRON_INGOT, D = DIAMOND
+craft-result-amount: 4
+
+# --- Близость игроков ---
+proximity-radius: 15
+
+# --- Взрыв бомбы ---
+bomb-kill-radius: 50
+bomb-explosion-power: 10
+
+# --- Запрещённые блоки ---
+banned-blocks:
+  - TNT
+  - RESPAWN_ANCHOR
+  - END_CRYSTAL
+  - BEDROCK
+  - BARRIER
+  - COMMAND_BLOCK
+  - CHAIN_COMMAND_BLOCK
+  - REPEATING_COMMAND_BLOCK
+  - STRUCTURE_BLOCK
+  - JIGSAW
+
+# --- Подсказки горячо/холодно (расширенная система) ---
+# Формат: расстояние -> текст
+hints:
+  - distance: 3
+    text: "<dark_red><bold>🔥🔥🔥 ЭПИЦЕНТР! Прямо здесь!</bold></dark_red>"
+  - distance: 7
+    text: "<red><bold>🔥🔥 ОБЖИГАЕТ! Очень близко!</bold></red>"
+  - distance: 15
+    text: "<red>🔥 Горячо! Рядом!</red>"
+  - distance: 30
+    text: "<gold>🟠 Очень тепло! Направление верное!</gold>"
+  - distance: 60
+    text: "<yellow>🟡 Тепло. Вы приближаетесь.</yellow>"
+  - distance: 100
+    text: "<yellow>🌤 Слегка тепло. Где-то в этом районе.</yellow>"
+  - distance: 175
+    text: "<white>🌫 Нейтрально. Ни горячо ни холодно.</white>"
+  - distance: 275
+    text: "<aqua>🌬 Прохладно. Далековато.</aqua>"
+  - distance: 400
+    text: "<aqua>❄ Холодно. Вы далеко.</aqua>"
+  - distance: 600
+    text: "<blue>🥶 Очень холодно! Совсем не туда.</blue>"
+  - distance: 850
+    text: "<blue><bold>🧊 Замерзаете! Бомба далеко отсюда.</bold></blue>"
+  - distance: 99999
+    text: "<dark_blue><bold>⛄ Арктический холод! Максимально далеко!</bold></dark_blue>"
+
+# --- Направление (компас) ---
+# Помимо горячо/холодно показываем направление
+direction-enabled: true
+direction-format: "<gray>Направление: <white>%direction%</white></gray>"
+
+# --- Ивенты ---
+events:
+  enabled: true
+  # Минимальный и максимальный интервал между ивентами (секунды)
+  min-interval: 180
+  max-interval: 420
+  # Первый ивент через (секунды)
+  first-event-delay: 120
+
+# --- Сообщения ---
+messages:
+  prefix: "<dark_gray>[<gradient:gold:red>FindGame</gradient><dark_gray>] "
+  game-starting: "<green><bold>Игра начинается! Все игроки телепортируются на арену..."
+  game-start: "<green>Найдите заминированный блок! У вас %detectors% детекторов."
+  game-win: "<gold><bold>🎉 ПОБЕДА!</bold> <green>Команда нашла и разминировала бомбу!"
+  game-lose: "<red><bold>💥 ПОРАЖЕНИЕ!</bold> <gray>Бомба взорвалась..."
+  game-end: "<yellow>Игра окончена. Возвращаемся..."
+  already-running: "<red>Игра уже запущена!"
+  not-running: "<red>Игра не запущена!"
+  no-players: "<red>На сервере нет игроков!"
+  no-detectors: "<red>У вас нет детекторов! Скрафтите новые."
+  not-close-enough: "<red>Все игроки должны быть в радиусе <white>%radius%</white> блоков друг от друга!"
+  closest-marker: "<aqua><bold>⭐ БЛИЖЕ ВСЕХ</bold>"
+  new-closest: "<green>✔ Новая ближайшая точка!"
+  not-closer: "<red>✘ Предыдущая точка ближе."
+  defused: "<green><bold>✂ Мина разминирована!"
+  banned-block: "<red>Этот блок запрещён в игре!"
+  portal-blocked: "<red>Порталы отключены во время игры!"
+  no-permission: "<red>Нет прав!"
+  reloaded: "<green>Конфигурация перезагружена!"
+  detector-crafted: "<green>Вы скрафтили детекторы! (+%amount%)"
+
+# --- Награды ---
+rewards:
+  enabled: false
+  commands:
+    - "eco give %player% 1000"
