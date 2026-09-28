@@ -21,10 +21,21 @@ public class HologramManager {
 
     private final FindGame plugin;
     private final MiniMessage mm;
+    private final GameManager gameManager;
 
-    public HologramManager(FindGame plugin) {
+    public HologramManager(FindGame plugin, GameManager gameManager) {
         this.plugin = plugin;
         this.mm = plugin.mm();
+        this.gameManager = gameManager;
+    }
+
+    private boolean timeToHelp() {
+        GameSession session = gameManager.getCurrentSession();
+        if (session == null || !session.isActive()) return false;
+
+        long elapsed = session.getElapsedSeconds();
+        long minutes = (elapsed % 3600) / 60;
+        return minutes > 30;
     }
 
     public HologramEntry createHintHologram(GameSession session, PlayerData playerData, Location blockLocation) {
@@ -35,7 +46,7 @@ public class HologramManager {
         boolean dirEnabled = plugin.getConfig().getBoolean("direction-enabled", true);
 
         StringBuilder fullText = new StringBuilder(hintText);
-        if (dirEnabled) fullText.append("\n<gray>Направление: <white>").append(direction).append("</white></gray>");
+        if (dirEnabled && timeToHelp()) fullText.append("\n<gray>Направление: <white>").append(direction).append("</white></gray>");
 
         World world = blockLocation.getWorld();
         Location holoLoc = blockLocation.clone().add(0.5, 1.5, 0.5);
@@ -71,6 +82,7 @@ public class HologramManager {
 
             if (newEntry.closestDisplay() != null && !newEntry.closestDisplay().isDead()) newEntry.closestDisplay().text(closestComponent);
 
+            if (currentClosest != null && currentClosest.distanceToBomb() < 10) currentClosest.laterRemove(plugin, 3);
             session.setGlobalClosestHologram(newEntry);
             return true;
         }

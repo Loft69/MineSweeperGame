@@ -31,11 +31,11 @@ public class FindGame extends JavaPlugin {
         saveDefaultConfig();
 
         this.worldManager = new WorldManager(this);
-        this.hologramManager = new HologramManager(this);
+        this.gameManager = new GameManager(this);
+        this.hologramManager = new HologramManager(this, gameManager);
         this.proximityManager = new ProximityManager(this);
         this.scoreboardManager = new ScoreboardManager(this);
         this.eventManager = new EventManager(this);
-        this.gameManager = new GameManager(this);
 
         var pm = getServer().getPluginManager();
         pm.registerEvents(new GameListener(this), this);

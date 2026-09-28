@@ -90,11 +90,11 @@ public class GameManager {
         plugin.getScoreboardManager().startUpdating();
 
         plugin.getEventManager().startScheduler(currentSession);
-
-//        plugin.getLogger().info("[GAME] Бомба: X=" + bombLocation.getBlockX()
+//
+//        plugin.getLogger().info("[GAME BOMB] X=" + bombLocation.getBlockX()
 //                + " Y=" + bombLocation.getBlockY()
 //                + " Z=" + bombLocation.getBlockZ()
-//                + " Блок: " + bombLocation.getBlock().getType());
+//                + " Type: " + bombLocation.getBlock().getType());
     }
 
     public void checkBlock(Player player, Location blockLocation) {
@@ -151,10 +151,13 @@ public class GameManager {
 
         if (isNewClosest) {
             broadcastToSession(plugin.msg("new-closest"));
-            for (Player p : getSessionPlayers()) p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 2.0f);
+            for (Player p : getSessionPlayers()) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 2.0f);
+            }
         } else {
             player.sendMessage(plugin.msg("not-closer"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
+            if (entry.distanceToBomb() < 10) entry.laterRemove(plugin, 3);
         }
 
         player.getWorld().spawnParticle(Particle.ENCHANT, blockLocation.clone().add(0.5, 1.2, 0.5), 30, 0.3, 0.3, 0.3, 0.5);

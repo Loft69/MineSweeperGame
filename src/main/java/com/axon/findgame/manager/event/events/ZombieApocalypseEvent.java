@@ -25,6 +25,7 @@ public class ZombieApocalypseEvent extends GameEvent {
     private boolean betweenWaves = false;
     private long betweenWaveStart = 0;
     private int zombiesKilled = 0;
+    private long startTimeWorld = 0;
 
     private final Random random = new Random();
 
@@ -51,7 +52,16 @@ public class ZombieApocalypseEvent extends GameEvent {
 
     @Override
     protected void onStart() {
-        session.getArenaWorld().setDifficulty(Difficulty.HARD);
+        World world = session.getArenaWorld();
+
+        world.setDifficulty(Difficulty.HARD);
+        world.setThundering(true);
+        world.setThunderDuration(220);
+        world.setStorm(true);
+        startTimeWorld = world.getTime();
+        world.setTime(14000);
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+
         survivedPlayers.addAll(session.getPlayers().keySet());
 
         broadcast("<red><bold>🧟 ЗОМБИ-АПОКАЛИПСИС!</bold></red>");
@@ -77,7 +87,16 @@ public class ZombieApocalypseEvent extends GameEvent {
     protected void onEnd() {
         stopWaveTask();
         cleanupZombies();
-        session.getArenaWorld().setDifficulty(Difficulty.PEACEFUL);
+
+        World world = session.getArenaWorld();
+
+        world.setDifficulty(Difficulty.HARD);
+        world.setThundering(false);
+        world.setStorm(false);
+        world.setTime(startTimeWorld);
+        startTimeWorld = 0;
+        world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+
 
         List<Player> survivors = new ArrayList<>();
         for (UUID uuid : survivedPlayers) {
@@ -222,7 +241,6 @@ public class ZombieApocalypseEvent extends GameEvent {
 
 
         double baseHealth = switch (wave) {
-            case 1 -> 20.0;
             case 2 -> 25.0;
             case 3 -> 30.0;
             default -> 20.0;
@@ -237,10 +255,9 @@ public class ZombieApocalypseEvent extends GameEvent {
         var speedAttr = zombie.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (speedAttr != null) {
             double speed = switch (wave) {
-                case 1 -> 0.25;
-                case 2 -> 0.28;
-                case 3 -> 0.32;
-                default -> 0.25;
+                case 2 -> 0.35;
+                case 3 -> 0.50;
+                default -> 0.30;
             };
             speedAttr.setBaseValue(speed);
         }
@@ -248,7 +265,6 @@ public class ZombieApocalypseEvent extends GameEvent {
         var dmgAttr = zombie.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
         if (dmgAttr != null) {
             double dmg = switch (wave) {
-                case 1 -> 3.0;
                 case 2 -> 5.0;
                 case 3 -> 7.0;
                 default -> 3.0;

@@ -43,7 +43,7 @@ public class QuizEvent extends GameEvent {
 
     @Override
     public String getDisplayName() {
-        return "🧠 Викторина (" + currentQuestion + "/" + totalQuestions + ")";
+        return "🧠 Викторина (" + (currentQuestion - 1) + "/" + totalQuestions + ")";
     }
 
     @Override
@@ -85,11 +85,12 @@ public class QuizEvent extends GameEvent {
     }
 
     private void askNextQuestion() {
-        currentQuestion++;
         if (currentQuestion > totalQuestions) {
             end();
             return;
         }
+
+        currentQuestion++;
 
         List<QuizQuestion> shuffled = new ArrayList<>(QUESTIONS);
         Collections.shuffle(shuffled);

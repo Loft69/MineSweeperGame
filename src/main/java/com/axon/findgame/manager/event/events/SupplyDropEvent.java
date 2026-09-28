@@ -49,13 +49,15 @@ public class SupplyDropEvent extends GameEvent {
 
         double angle = random.nextDouble() * 2 * Math.PI;
         double dist = 100 + random.nextInt(201);
-        int tx = avg.getBlockX() + (int) (Math.cos(angle) * dist);
-        int tz = avg.getBlockZ() + (int) (Math.sin(angle) * dist);
+        double rawX = avg.getX() + (Math.cos(angle) * dist);
+        double rawZ = avg.getZ() + (Math.sin(angle) * dist);
 
-        world.getChunkAt(tx >> 4, tz >> 4).load(true);
-        int ty = world.getHighestBlockYAt(tx, tz) + 1;
+        Location tempLoc = new Location(world, rawX, 100, rawZ);
 
-        dropLocation = new Location(world, tx + 0.5, ty, tz + 0.5);
+        dropLocation = clampToWorldBorder(tempLoc, 15.0);
+
+        int tx = dropLocation.getBlockX();
+        int tz = dropLocation.getBlockZ();
 
         dropLocation.getBlock().setType(Material.GLOWSTONE);
 
@@ -78,7 +80,32 @@ public class SupplyDropEvent extends GameEvent {
         broadcast("<yellow>Координаты: <white>X=" + tx + " Z=" + tz);
         broadcast("<gray>Первый кто подойдёт — заберёт <green>8 детекторов</green> + бонусный лут!");
 
-        for (Player p : getOnlinePlayers()) p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 0.5f);
+        for (Player p : getOnlinePlayers()) {
+            p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 0.5f);
+        }
+    }
+
+    private Location clampToWorldBorder(Location loc, double margin) {
+        World world = loc.getWorld();
+        WorldBorder border = world.getWorldBorder();
+        Location center = border.getCenter();
+
+        double halfSize = (border.getSize() / 2.0) - margin;
+
+        double minX = center.getX() - halfSize;
+        double maxX = center.getX() + halfSize;
+        double minZ = center.getZ() - halfSize;
+        double maxZ = center.getZ() + halfSize;
+
+        double clampedX = Math.clamp(loc.getX(), minX, maxX);
+        double clampedZ = Math.clamp(loc.getZ(), minZ, maxZ);
+
+        int blockX = (int) clampedX;
+        int blockZ = (int) clampedZ;
+        world.getChunkAt(blockX >> 4, blockZ >> 4).load(true);
+        int y = world.getHighestBlockYAt(blockX, blockZ) + 1;
+
+        return new Location(world, blockX + 0.5, y, blockZ + 0.5);
     }
 
     @Override
@@ -102,7 +129,7 @@ public class SupplyDropEvent extends GameEvent {
             if (!player.getWorld().equals(dropLocation.getWorld())) continue;
 
             double distSq = player.getLocation().distanceSquared(dropLocation);
-            if (distSq <= 9.0) { // 3 блока
+            if (distSq <= 9.0) {
                 collectDrop(player);
                 return;
             }

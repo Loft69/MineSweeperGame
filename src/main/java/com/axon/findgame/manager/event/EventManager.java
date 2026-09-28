@@ -129,8 +129,7 @@ public class EventManager {
             }
 
             if (activeEvent != null && activeEvent.isActive()) return;
-
-            if (activeEvent != null && !activeEvent.isActive()) activeEvent = null;
+            if (activeEvent != null) activeEvent = null;
 
             if (System.currentTimeMillis() >= nextEventTime) {
                 startRandomEvent(session);

@@ -2,9 +2,11 @@ package com.axon.findgame.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,11 +36,12 @@ public class PlayerData {
         holograms.add(entry);
     }
 
+    public void removeHologram(HologramEntry entry) {
+        holograms.remove(entry);
+    }
+
     public void clearHolograms() {
-        for (HologramEntry entry : holograms) {
-            if (entry.mainDisplay() != null && !entry.mainDisplay().isDead()) entry.mainDisplay().remove();
-            if (entry.closestDisplay() != null && !entry.closestDisplay().isDead()) entry.closestDisplay().remove();
-        }
+        for (HologramEntry entry : holograms) entry.remove();
         holograms.clear();
     }
 
@@ -50,5 +53,20 @@ public class PlayerData {
         this.checkerItem = null;
     }
 
-    public record HologramEntry(Location blockLocation, double distanceToBomb, TextDisplay mainDisplay, TextDisplay closestDisplay) {}
+    public record HologramEntry(Location blockLocation, double distanceToBomb, TextDisplay mainDisplay, TextDisplay closestDisplay) {
+        public void remove() {
+            if (mainDisplay != null && !mainDisplay.isDead()) mainDisplay.remove();
+            if (closestDisplay != null && !closestDisplay.isDead()) closestDisplay.remove();
+        }
+
+        public boolean isClosest() {
+            return closestDisplay != null && !closestDisplay.isDead() && closestDisplay.isEmpty();
+        }
+
+        public void laterRemove(JavaPlugin plugin, int seconds) {
+            Bukkit.getScheduler().runTaskLater(plugin, task -> remove(), 20L * seconds);
+        }
+
+
+    }
 }

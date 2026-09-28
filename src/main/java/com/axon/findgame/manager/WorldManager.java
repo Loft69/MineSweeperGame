@@ -28,7 +28,7 @@ public class WorldManager {
         creator.environment(World.Environment.NORMAL);
         creator.type(WorldType.NORMAL);
         creator.seed(seed);
-        creator.generateStructures(false);
+        creator.generateStructures(true);
 
         World world = creator.createWorld();
 
@@ -78,10 +78,32 @@ public class WorldManager {
     }
 
     public Location findSpawnLocation(World world) {
-        int x = 0, z = 0;
+        int radius = 150;
+        java.util.Random random = new java.util.Random();
+
+        for (int attempt = 0; attempt < 500; attempt++) {
+            int x = random.nextInt(radius * 2 + 1) - radius;
+            int z = random.nextInt(radius * 2 + 1) - radius;
+
+            world.getChunkAt(x >> 4, z >> 4).load(true);
+
+            int highestY = world.getHighestBlockYAt(x, z);
+            Block block = world.getBlockAt(x, highestY, z);
+
+            if (block.isLiquid()) continue;
+
+            if (!block.getType().isSolid()) continue;
+
+//            Block above1 = block.getRelative(0, 1, 0);
+//            Block above2 = block.getRelative(0, 2, 0);
+//            if (!above1.isEmpty() || !above2.isEmpty()) continue;
+
+            return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+        }
+
         world.getChunkAt(0, 0).load(true);
-        int highestY = world.getHighestBlockYAt(x, z);
-        return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+        int fallbackY = world.getHighestBlockYAt(0, 0);
+        return new Location(world, 0.5, fallbackY + 1, 0.5);
     }
 
     public Location chooseBombLocation(World world, Location spawnLocation) {
@@ -99,7 +121,7 @@ public class WorldManager {
             world.getChunkAt(x >> 4, z >> 4).load(true);
 
             int surfaceY = world.getHighestBlockYAt(x, z);
-            int depth = random.nextInt(4);
+            int depth = random.nextInt(50);
             int bombY = surfaceY - depth;
 
             if (bombY < world.getMinHeight() + 1) continue;

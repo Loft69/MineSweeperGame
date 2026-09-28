@@ -1,11 +1,14 @@
 package com.axon.findgame.model;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.Location;
 import org.bukkit.World;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Getter
 public class GameSession {
 
     private final World arenaWorld;
@@ -13,8 +16,10 @@ public class GameSession {
     private final Location bombLocation;
     private final Map<UUID, PlayerData> players = new ConcurrentHashMap<>();
     private final long startTime;
+    @Setter
     private boolean active = true;
 
+    @Setter
     private PlayerData.HologramEntry globalClosestHologram = null;
 
     public GameSession(World arenaWorld, Location spawnLocation, Location bombLocation) {
@@ -24,19 +29,8 @@ public class GameSession {
         this.startTime = System.currentTimeMillis();
     }
 
-    public World getArenaWorld() { return arenaWorld; }
-    public Location getSpawnLocation() { return spawnLocation; }
-    public Location getBombLocation() { return bombLocation; }
-    public Map<UUID, PlayerData> getPlayers() { return players; }
-    public long getStartTime() { return startTime; }
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
-
     public PlayerData getPlayerData(UUID uuid) { return players.get(uuid); }
     public void addPlayer(UUID uuid, PlayerData data) { players.put(uuid, data); }
-
-    public PlayerData.HologramEntry getGlobalClosestHologram() { return globalClosestHologram; }
-    public void setGlobalClosestHologram(PlayerData.HologramEntry entry) { this.globalClosestHologram = entry; }
 
     public double getDistanceToBomb(Location loc) {
         return loc.toVector().distance(bombLocation.toVector());
