@@ -57,8 +57,7 @@ public class ItemDeliveryEvent extends GameEvent {
 
         String itemName = formatName(requiredMaterial.name());
 
-        broadcast("<yellow>Соберите и выбросьте (Q) <white>" + requiredAmount
-                + "x " + itemName + "</white> чтобы получить детекторы!");
+        broadcast("<yellow>Соберите и выбросьте (Q) <white>" + requiredAmount + "x " + itemName + "</white> чтобы получить детекторы!");
         broadcast("<gray>Каждый игрок может сдать индивидуально.");
     }
 
@@ -72,8 +71,7 @@ public class ItemDeliveryEvent extends GameEvent {
     protected void onTick(long elapsedSeconds) {
         if (elapsedSeconds % 30 == 0 && elapsedSeconds > 0) {
             String itemName = formatName(requiredMaterial.name());
-            broadcast("<gray>Напоминание: нужно <white>" + requiredAmount
-                    + "x " + itemName + "</white>. Выбросьте (Q) чтобы сдать.");
+            broadcast("<gray>Напоминание: нужно <white>" + requiredAmount + "x " + itemName + "</white>. Выбросьте (Q) чтобы сдать.");
         }
     }
 
@@ -110,8 +108,7 @@ public class ItemDeliveryEvent extends GameEvent {
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
             broadcast("<green>" + player.getName() + " сдал предмет и получил +2 детектора!");
         } else
-            player.sendMessage(mm.deserialize("<red>Нужно <white>" + requiredAmount + "</white>, а вы выбросили <white>"
-                            + dropped.getAmount() + "</white>. Выбросьте нужное кол-во за раз!"));
+            player.sendMessage(mm.deserialize("<red>Нужно <white>" + requiredAmount + "</white>, а вы выбросили <white>" + dropped.getAmount() + "</white>. Выбросьте нужное кол-во за раз!"));
     }
 
     private String formatName(String name) {

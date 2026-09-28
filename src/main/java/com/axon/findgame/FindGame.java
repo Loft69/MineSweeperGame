@@ -7,12 +7,15 @@ import com.axon.findgame.listener.PortalListener;
 import com.axon.findgame.listener.ProtectionListener;
 import com.axon.findgame.manager.*;
 import com.axon.findgame.manager.event.EventManager;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@Getter
 public class FindGame extends JavaPlugin {
 
+    @Getter
     private static FindGame instance;
     private GameManager gameManager;
     private WorldManager worldManager;
@@ -56,13 +59,6 @@ public class FindGame extends JavaPlugin {
         getLogger().info("FindGame v3.0 выключен!");
     }
 
-    public static FindGame getInstance() { return instance; }
-    public GameManager getGameManager() { return gameManager; }
-    public WorldManager getWorldManager() { return worldManager; }
-    public HologramManager getHologramManager() { return hologramManager; }
-    public ProximityManager getProximityManager() { return proximityManager; }
-    public ScoreboardManager getScoreboardManager() { return scoreboardManager; }
-    public EventManager getEventManager() { return eventManager; }
     public MiniMessage mm() { return miniMessage; }
 
     public Component msg(String key) {

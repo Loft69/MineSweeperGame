@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id 'io.freefair.lombok' version '9.5.0'
 }
 
 group = 'com.axon'
@@ -15,6 +16,8 @@ repositories {
 }
 
 dependencies {
+    compileOnly 'org.projectlombok:lombok:1.18.48'
+    annotationProcessor 'org.projectlombok:lombok:1.18.48'
     compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
 }
 

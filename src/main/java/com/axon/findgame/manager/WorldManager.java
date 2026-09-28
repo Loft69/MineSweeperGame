@@ -33,17 +33,17 @@ public class WorldManager {
         World world = creator.createWorld();
 
         if (world != null) {
-            world.setDifficulty(Difficulty.NORMAL);
-            world.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-            world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-            world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
-            world.setGameRule(GameRule.KEEP_INVENTORY, true);
-            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
+            world.setDifficulty(Difficulty.HARD);
+            world.setGameRule(GameRule.DO_MOB_SPAWNING, true);
+            world.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
+            world.setGameRule(GameRule.DO_WEATHER_CYCLE, true);
+            world.setGameRule(GameRule.KEEP_INVENTORY, false);
+            world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, true);
             world.setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true);
-            world.setGameRule(GameRule.DO_FIRE_TICK, false);
-            world.setGameRule(GameRule.MOB_GRIEFING, false);
+            world.setGameRule(GameRule.DO_FIRE_TICK, true);
+            world.setGameRule(GameRule.MOB_GRIEFING, true);
             world.setGameRule(GameRule.NATURAL_REGENERATION, true);
-            world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
+            world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, true);
             world.setTime(6000);
             world.setStorm(false);
             world.setThundering(false);

@@ -4,6 +4,7 @@ import com.axon.findgame.FindGame;
 import com.axon.findgame.model.GameSession;
 import com.axon.findgame.model.PlayerData;
 import com.axon.findgame.model.PlayerData.HologramEntry;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
@@ -20,6 +21,7 @@ public class GameManager {
 
     private final FindGame plugin;
     private final MiniMessage mm;
+    @Getter
     private GameSession currentSession = null;
     private TextDisplay bannedBlocksHologram = null;
 
@@ -108,23 +110,38 @@ public class GameManager {
             return;
         }
 
-        int detectorSlot = findDetectorSlot(player);
-        if (detectorSlot == -1) {
-            player.sendMessage(plugin.msg("no-detectors"));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
-            return;
-        }
+        boolean freeCheck = isFreeCheckActive();
 
-        if (!plugin.getProximityManager().areAllPlayersCloseEnough(currentSession)) {
-            int radius = plugin.getConfig().getInt("proximity-radius", 15);
-            String msgStr = plugin.msgStr("not-close-enough").replace("%radius%", String.valueOf(radius));
-            String prefix = plugin.getConfig().getString("messages.prefix", "");
-            player.sendMessage(mm.deserialize(prefix + msgStr));
-            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f);
-            return;
-        }
+        if (!freeCheck) {
+            int detectorSlot = findDetectorSlot(player);
+            if (detectorSlot == -1) {
+                player.sendMessage(plugin.msg("no-detectors"));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                return;
+            }
 
-        consumeDetector(player, detectorSlot);
+            if (!plugin.getProximityManager().areAllPlayersCloseEnough(currentSession)) {
+                int radius = plugin.getConfig().getInt("proximity-radius", 15);
+                String msgStr = plugin.msgStr("not-close-enough").replace("%radius%", String.valueOf(radius));
+                String prefix = plugin.getConfig().getString("messages.prefix", "");
+                player.sendMessage(mm.deserialize(prefix + msgStr));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f);
+                return;
+            }
+
+            consumeDetector(player, detectorSlot);
+        } else {
+            if (!plugin.getProximityManager().areAllPlayersCloseEnough(currentSession)) {
+                int radius = plugin.getConfig().getInt("proximity-radius", 15);
+                String msgStr = plugin.msgStr("not-close-enough").replace("%radius%", String.valueOf(radius));
+                String prefix = plugin.getConfig().getString("messages.prefix", "");
+                player.sendMessage(mm.deserialize(prefix + msgStr));
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f);
+                return;
+            }
+
+            player.sendMessage(mm.deserialize(plugin.getConfig().getString("messages.prefix", "") + "<green>🌑 Бесплатная проверка! (Слепое испытание)"));
+        }
 
         playerData.incrementChecksUsed();
 
@@ -246,7 +263,7 @@ public class GameManager {
         plugin.getScoreboardManager().stopUpdating();
         plugin.getScoreboardManager().clearAllScoreboards();
 
-        World fallback = Bukkit.getWorlds().get(0);
+        World fallback = Bukkit.getWorlds().getFirst();
         for (Map.Entry<UUID, PlayerData> entry : currentSession.getPlayers().entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) continue;
@@ -263,6 +280,14 @@ public class GameManager {
         World arenaWorld = currentSession.getArenaWorld();
         currentSession = null;
         plugin.getWorldManager().deleteWorld(arenaWorld);
+    }
+
+    public boolean isFreeCheckActive() {
+        var event = plugin.getEventManager().getActiveEvent();
+        if (event instanceof com.axon.findgame.manager.event.events.BlindnessLabyrinthEvent blindEvent) {
+            return blindEvent.isFreeChecks();
+        }
+        return false;
     }
 
     public ItemStack createDetectorItem() {
@@ -318,8 +343,6 @@ public class GameManager {
     public boolean isGameActive() {
         return currentSession != null && currentSession.isActive();
     }
-
-    public GameSession getCurrentSession() { return currentSession; }
 
     public boolean isPlayerInGame(UUID uuid) {
         return currentSession != null && currentSession.getPlayers().containsKey(uuid);

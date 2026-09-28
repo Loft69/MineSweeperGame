@@ -1,9 +1,10 @@
 package com.axon.findgame.manager.event;
 
 import com.axon.findgame.FindGame;
-import com.axon.findgame.manager.event.events.ItemDeliveryEvent;
-import com.axon.findgame.manager.event.events.ZombieApocalypseEvent;
+import com.axon.findgame.manager.event.events.*;
 import com.axon.findgame.model.GameSession;
+import lombok.Getter;
+import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -15,6 +16,7 @@ public class EventManager {
     private final List<GameEventType> registeredTypes = new ArrayList<>();
     private final Random random = new Random();
 
+    @Getter
     private GameEvent activeEvent = null;
     private BukkitTask schedulerTask = null;
     private long nextEventTime = 0;
@@ -25,7 +27,8 @@ public class EventManager {
     }
 
     private void registerDefaultEvents() {
-        registeredTypes.add(new GameEventType(
+        // Обычные ивенты (частые)
+        registerEventType(new GameEventType(
                 "item_delivery",
                 "📦 Доставка предметов",
                 "Сдайте нужный предмет за награду!",
@@ -33,7 +36,73 @@ public class EventManager {
                 () -> new ItemDeliveryEvent(plugin)
         ));
 
-        registeredTypes.add(new GameEventType(
+        registerEventType(new GameEventType(
+                "treasure_hunt",
+                "🗺️ Охота за сокровищами",
+                "Найдите сундуки с лутом!",
+                4,
+                () -> new TreasureHuntEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
+                "quiz",
+                "🧠 Викторина",
+                "Ответь на вопросы о Minecraft!",
+                5,
+                () -> new QuizEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
+                "supply_drop",
+                "🪂 Сброс припасов",
+                "Добеги до точки сброса!",
+                4,
+                () -> new SupplyDropEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
+                "freeze_tag",
+                "🧊 Случайная заморозка",
+                "Случайного игрока замораживает!",
+                4,
+                () -> new FreezeTagEvent(plugin)
+        ));
+
+        // Средней редкости
+        registerEventType(new GameEventType(
+                "speed_race",
+                "⚡ Скоростной забег",
+                "Добеги до контрольной точки!",
+                3,
+                () -> new SpeedBoostRaceEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
+                "blindness",
+                "🌑 Слепое испытание",
+                "Бесплатные проверки, но вы слепы!",
+                3,
+                () -> new BlindnessLabyrinthEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
+                "hot_potato",
+                "🥔 Горячая картошка",
+                "Передай картошку другому!",
+                3,
+                () -> new HotPotatoEvent(plugin)
+        ));
+
+        // Сложные ивенты (редкие)
+        registerEventType(new GameEventType(
+                "meteor_shower",
+                "☄️ Метеоритный дождь",
+                "Уворачивайтесь от метеоритов!",
+                2,
+                () -> new MeteorShowerEvent(plugin)
+        ));
+
+        registerEventType(new GameEventType(
                 "zombie_apocalypse",
                 "🧟 Зомби-апокалипсис",
                 "Выживите в волнах зомби!",
@@ -94,13 +163,20 @@ public class EventManager {
         plugin.getLogger().info("[EVENT] Запущен ивент: " + chosen.displayName());
     }
 
+    public void startEvent(@NonNull GameSession session, @NonNull GameEventType eventType) {
+        activeEvent = eventType.factory().get();
+        activeEvent.start(session);
+
+        plugin.getLogger().info("[EVENT] Принудительно запущен ивент: " + eventType.displayName());
+    }
+
     private GameEventType pickWeightedRandom() {
         int totalWeight = 0;
         for (GameEventType type : registeredTypes) {
             totalWeight += type.weight();
         }
 
-        if (totalWeight <= 0) return registeredTypes.get(0);
+        if (totalWeight <= 0) return registeredTypes.getFirst();
 
         int roll = random.nextInt(totalWeight);
         int current = 0;
@@ -110,7 +186,7 @@ public class EventManager {
             if (roll < current) return type;
         }
 
-        return registeredTypes.get(registeredTypes.size() - 1);
+        return registeredTypes.getLast();
     }
 
     private void scheduleNextEvent() {
@@ -118,10 +194,6 @@ public class EventManager {
         int maxInterval = plugin.getConfig().getInt("events.max-interval", 420);
         int interval = minInterval + random.nextInt(maxInterval - minInterval + 1);
         nextEventTime = System.currentTimeMillis() + (interval * 1000L);
-    }
-
-    public GameEvent getActiveEvent() {
-        return activeEvent;
     }
 
     public long getSecondsUntilNextEvent() {
@@ -132,5 +204,14 @@ public class EventManager {
 
     public List<GameEventType> getRegisteredTypes() {
         return Collections.unmodifiableList(registeredTypes);
+    }
+
+    public GameEventType getRegisteredType(String id) {
+        Optional<GameEventType> optEvent = getRegisteredTypes().stream().filter(event -> event.id().equalsIgnoreCase(id)).findFirst();
+        return optEvent.orElse(null);
+    }
+
+    public List<String> getRegisteredTypesId() {
+        return getRegisteredTypes().stream().map(GameEventType::id).toList();
     }
 }

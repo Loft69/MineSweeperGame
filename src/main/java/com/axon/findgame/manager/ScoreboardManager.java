@@ -5,13 +5,16 @@ import com.axon.findgame.manager.event.EventManager;
 import com.axon.findgame.manager.event.GameEvent;
 import com.axon.findgame.model.GameSession;
 import com.axon.findgame.model.PlayerData;
+import com.axon.findgame.model.PlayerData.HologramEntry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public class ScoreboardManager {
@@ -37,7 +40,7 @@ public class ScoreboardManager {
                 if (player == null || !player.isOnline()) continue;
                 updatePlayerScoreboard(player, session);
             }
-        }, 0L, 20L);
+        }, 0L, 10L);
     }
 
     public void stopUpdating() {
@@ -48,7 +51,7 @@ public class ScoreboardManager {
     }
 
     private void updatePlayerScoreboard(Player player, GameSession session) {
-        org.bukkit.scoreboard.Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
         Objective objective = scoreboard.registerNewObjective("findgame", Criteria.DUMMY, mm.deserialize("<gradient:gold:red><bold>💣 FindGame</bold></gradient>"));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
@@ -58,6 +61,24 @@ public class ScoreboardManager {
 
         setLine(objective, line--, Component.empty());
 
+        HologramEntry closest = session.getGlobalClosestHologram();
+        if (closest != null) {
+            setLine(objective, line--, mm.deserialize("<aqua><bold>⭐ Ближайшая точка:</bold></aqua>"));
+
+            Location closestLoc = closest.blockLocation();
+            setLine(objective, line--, mm.deserialize("<white>  X: <aqua>" + closestLoc.getBlockX()
+                            + "</aqua> Y: <aqua>" + closestLoc.getBlockY()
+                            + "</aqua> Z: <aqua>" + closestLoc.getBlockZ() + "</aqua>"));
+
+            double distToClosest = player.getLocation().distance(closestLoc.clone().add(0.5, 0.5, 0.5));
+            setLine(objective, line--, mm.deserialize("<gray>  До точки: <yellow>" + String.format("%.1f", distToClosest) + " блоков"));
+
+            String hintEmoji = getHintEmoji(closest.distanceToBomb());
+            setLine(objective, line--, mm.deserialize("<gray>  Статус: " + hintEmoji));
+        } else setLine(objective, line--, mm.deserialize("<gray>⭐ Ближайшая точка: <dark_gray>нет"));
+
+        setLine(objective, line--, Component.text(" "));
+
         setLine(objective, line--, mm.deserialize("<yellow><bold>Игроки:</bold></yellow>"));
 
         for (var entry : session.getPlayers().entrySet()) {
@@ -66,9 +87,10 @@ public class ScoreboardManager {
 
             int detectors = countDetectors(p);
             String status = p.isDead() ? "<red>💀" : "<green>❤";
-            setLine(objective, line--, mm.deserialize(status + " <white>" + p.getName() + " <gray>🔍" + detectors));
+            setLine(objective, line--, mm.deserialize(
+                    status + " <white>" + p.getName() + " <gray>🔍" + detectors));
 
-            if (line <= 3) break;
+            if (line <= 5) break;
         }
 
         setLine(objective, line--, Component.text("  "));
@@ -93,9 +115,29 @@ public class ScoreboardManager {
 
         setLine(objective, line--, Component.text("   "));
         PlayerData pd = session.getPlayerData(player.getUniqueId());
-        if (pd != null) setLine(objective, line--, mm.deserialize("<gray>Проверок: <white>" + pd.getChecksUsed()));
+        if (pd != null) {
+            int myDetectors = countDetectors(player);
+            setLine(objective, line--, mm.deserialize("<gray>Мои детекторы: <white>" + myDetectors + " <dark_gray>| <gray>Проверок: <white>" + pd.getChecksUsed()));
+        }
 
         player.setScoreboard(scoreboard);
+    }
+
+    private String getHintEmoji(double distanceToBomb) {
+        var config = plugin.getConfig();
+        var hintsList = config.getList("hints");
+        if (hintsList == null) return "<gray>???";
+
+        for (Object obj : hintsList) {
+            if (obj instanceof java.util.Map<?, ?> map) {
+                Object distObj = map.get("distance");
+                Object textObj = map.get("text");
+
+                if (distObj instanceof Number num && textObj instanceof String text) if (distanceToBomb <= num.doubleValue()) return text;
+            }
+        }
+
+        return "<dark_blue>⛄ Очень далеко";
     }
 
     public void clearAllScoreboards() {
@@ -104,17 +146,20 @@ public class ScoreboardManager {
 
     private void setLine(Objective objective, int score, Component text) {
         String entry = generateUniqueEntry(score);
-        Scoreboard scoreboard = objective.getScoreboard();
-        if (scoreboard != null) {
-            Team team = objective.getScoreboard().registerNewTeam("line_" + score);
-            team.addEntry(entry);
-            team.prefix(text);
-            objective.getScore(entry).setScore(score);
-        }
+        Team team = Objects.requireNonNull(objective.getScoreboard()).registerNewTeam("line_" + score);
+        team.addEntry(entry);
+        team.prefix(text);
+        objective.getScore(entry).setScore(score);
     }
 
     private String generateUniqueEntry(int line) {
-        return "§r".repeat(Math.max(0, line)) + "§" + Integer.toHexString(line % 16);
+        StringBuilder sb = new StringBuilder();
+        String hex = Integer.toHexString(line);
+        for (char c : hex.toCharArray()) sb.append("§").append(c);
+
+        sb.append("§r");
+        sb.append(" ".repeat(Math.max(0, line)));
+        return sb.toString();
     }
 
     private int countDetectors(Player player) {

@@ -3,6 +3,7 @@ package com.axon.findgame.listener;
 import com.axon.findgame.FindGame;
 import com.axon.findgame.manager.GameManager;
 import com.axon.findgame.model.GameSession;
+import com.axon.findgame.model.PlayerData;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -13,6 +14,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
 
 public class GameListener implements Listener {
 
@@ -60,9 +63,22 @@ public class GameListener implements Listener {
 
         if (!gm.isPlayerInGame(player.getUniqueId())) return;
 
-        event.getDrops().removeIf(gm::isDetector);
+        GameSession session = gm.getCurrentSession();
 
-        event.deathMessage(null);
+        List<ItemStack> stacks = event.getDrops().stream()
+                .filter(item -> {
+                    if (!gm.isDetector(item)) return true;
+
+                    if (session != null && session.isActive()) {
+                        PlayerData playerData = session.getPlayerData(player.getUniqueId());
+                        if (playerData != null) playerData.setCheckerItem(item);
+                    }
+                    return false;
+                })
+                .toList();
+
+        event.getDrops().clear();
+        event.getDrops().addAll(stacks);
     }
 
     @EventHandler
@@ -73,13 +89,18 @@ public class GameListener implements Listener {
         if (!gm.isPlayerInGame(player.getUniqueId())) return;
 
         GameSession session = gm.getCurrentSession();
-        if (session != null && session.isActive()) {
-            event.setRespawnLocation(session.getSpawnLocation());
-        } else if (session != null) {
-            var playerData = session.getPlayerData(player.getUniqueId());
-            if (playerData != null && playerData.getPreviousLocation() != null) {
-                event.setRespawnLocation(playerData.getPreviousLocation());
+        if (session != null) {
+            PlayerData playerData = session.getPlayerData(player.getUniqueId());
+            if (playerData != null) {
+                if (session.isActive()) {
+                    player.getInventory().addItem(playerData.getChekerItem());
+                    playerData.clearCheckerItem();
+                    event.setRespawnLocation(session.getSpawnLocation());
+                } else {
+                    if (playerData.getPreviousLocation() != null) event.setRespawnLocation(playerData.getPreviousLocation());
+                }
             }
+
         }
     }
 

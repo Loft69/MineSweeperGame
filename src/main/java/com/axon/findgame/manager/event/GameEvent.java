@@ -2,6 +2,7 @@ package com.axon.findgame.manager.event;
 
 import com.axon.findgame.FindGame;
 import com.axon.findgame.model.GameSession;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
@@ -18,9 +19,11 @@ public abstract class GameEvent implements Listener {
 
     protected final FindGame plugin;
     protected final MiniMessage mm;
+    @Getter
     protected GameSession session;
     protected BukkitTask tickTask;
     protected long startTime;
+    @Getter
     protected boolean active = false;
 
     public GameEvent(FindGame plugin) {
@@ -47,7 +50,7 @@ public abstract class GameEvent implements Listener {
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        broadcastTitle("<light_purple><bold>⚡ ИВЕНТ!</bold></light_purple>", "<white>" + getDisplayName());
+        broadcastTitle("<white>" + getDisplayName());
         broadcast("<light_purple><bold>⚡ Ивент: </bold><white>" + getDisplayName());
         if (getRewardDescription() != null) broadcast("<gray>Награда: <green>" + getRewardDescription());
         broadcast("<gray>Длительность: <yellow>" + getDurationSeconds() + " сек");
@@ -98,15 +101,11 @@ public abstract class GameEvent implements Listener {
         HandlerList.unregisterAll(this);
     }
 
-    public boolean isActive() { return active; }
-
     public long getRemainingSeconds() {
         if (!active) return 0;
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
         return Math.max(0, getDurationSeconds() - elapsed);
     }
-
-    public GameSession getSession() { return session; }
 
     protected void broadcast(String miniMessageText) {
         Component component = mm.deserialize(
@@ -117,9 +116,9 @@ public abstract class GameEvent implements Listener {
         }
     }
 
-    protected void broadcastTitle(String titleText, String subtitleText) {
+    protected void broadcastTitle(String subtitleText) {
         Title title = Title.title(
-                mm.deserialize(titleText),
+                mm.deserialize("<light_purple><bold>⚡ ИВЕНТ!</bold></light_purple>"),
                 mm.deserialize(subtitleText),
                 Title.Times.times(Duration.ofMillis(300), Duration.ofSeconds(3), Duration.ofMillis(500))
         );

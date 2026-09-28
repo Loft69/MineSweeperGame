@@ -8,20 +8,23 @@ import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
 public class ZombieApocalypseEvent extends GameEvent {
 
     private int currentWave = 0;
-    private int totalWaves = 5;
-    private int zombiesAlive = 0;
-    private int zombiesKilledThisWave = 0;
-    private int zombiesPerWave = 5;
+    private final int totalWaves = 3;
     private final Set<UUID> spawnedZombies = new HashSet<>();
     private final Set<UUID> survivedPlayers = new HashSet<>();
+
+    private BukkitTask waveSpawnTask;
+    private long waveStartTime = 0;
     private boolean waveActive = false;
-    private long lastWaveTime = 0;
+    private boolean betweenWaves = false;
+    private long betweenWaveStart = 0;
+    private int zombiesKilled = 0;
 
     private final Random random = new Random();
 
@@ -31,42 +34,49 @@ public class ZombieApocalypseEvent extends GameEvent {
 
     @Override
     public String getDisplayName() {
-        if (currentWave > 0) return "🧟 Зомби-апокалипсис (Волна " + currentWave + "/" + totalWaves + ")";
+        if (betweenWaves) return "🧟 Зомби-апокалипсис (Перерыв...)";
+        if (waveActive) return "🧟 Зомби-апокалипсис (Волна " + currentWave + "/" + totalWaves + ")";
         return "🧟 Зомби-апокалипсис";
     }
 
     @Override
     public int getDurationSeconds() {
-        return 300;
+        return 220;
     }
 
     @Override
     public String getRewardDescription() {
-        return "Подсказка направления бомбы";
+        return "Направление бомбы (±)";
     }
 
     @Override
     protected void onStart() {
-        session.getArenaWorld().setGameRule(GameRule.DO_MOB_SPAWNING, false);
         session.getArenaWorld().setDifficulty(Difficulty.HARD);
-
         survivedPlayers.addAll(session.getPlayers().keySet());
 
-        totalWaves = 5;
-        zombiesPerWave = Math.max(3, getOnlinePlayers().size() * 3);
-
         broadcast("<red><bold>🧟 ЗОМБИ-АПОКАЛИПСИС!</bold></red>");
-        broadcast("<gray>Выживите " + totalWaves + " волн зомби!");
-        broadcast("<gray>Награда: <green>координаты направления бомбы (знаки ±)");
-        broadcast("<red><bold>Это будет СЛОЖНО!</bold></red>");
+        broadcast("<gray>3 волны зомби! Выживите все!");
+        broadcast("<gray>Награда выжившим: <green>направление бомбы</green>");
+        broadcast("<red><bold>⚠ Это будет СЛОЖНО!</bold></red>");
+        broadcast("");
+        broadcast("<gray>Волна 1: 2 зомби каждые 3 сек (60 сек)");
+        broadcast("<gray>Волна 2: 3 зомби каждые 3 сек (60 сек)");
+        broadcast("<gray>Волна 3: 5 зомби каждые 2 сек (60 сек)");
 
-        lastWaveTime = System.currentTimeMillis();
+        betweenWaves = true;
+        betweenWaveStart = System.currentTimeMillis();
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (isActive()) startNextWave();
+        }, 100L);
+
+        for (Player p : getOnlinePlayers()) p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.7f, 0.5f);
     }
 
     @Override
     protected void onEnd() {
+        stopWaveTask();
         cleanupZombies();
-
         session.getArenaWorld().setDifficulty(Difficulty.PEACEFUL);
 
         List<Player> survivors = new ArrayList<>();
@@ -75,12 +85,14 @@ public class ZombieApocalypseEvent extends GameEvent {
             if (p != null && p.isOnline() && !p.isDead()) survivors.add(p);
         }
 
+        broadcast("<gray>Зомби уничтожено: <white>" + zombiesKilled);
+
         if (!survivors.isEmpty() && currentWave >= totalWaves) {
             broadcast("<green><bold>🎖 Вы выжили!</bold></green>");
 
             for (Player survivor : survivors) {
                 String dirSign = session.getBombDirectionSign(survivor.getLocation());
-                survivor.sendMessage(mm.deserialize("<gold><bold>📍 Подсказка:</bold> <white>Бомба находится в направлении: " + dirSign));
+                survivor.sendMessage(mm.deserialize("<gold><bold>📍 Подсказка:</bold> <white>Направление бомбы: " + dirSign));
                 survivor.playSound(survivor.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
             }
 
@@ -92,11 +104,12 @@ public class ZombieApocalypseEvent extends GameEvent {
                     p.sendMessage(mm.deserialize("<gray>Выжившие получили подсказку: бомба в направлении " + dirSign));
                 }
             }
-        } else broadcast("<red>Не все волны пройдены. Награда не выдана.");
+        } else broadcast("<red>Не все волны пройдены или все погибли. Награда не выдана.");
     }
 
     @Override
     protected void onForceEnd() {
+        stopWaveTask();
         cleanupZombies();
         session.getArenaWorld().setDifficulty(Difficulty.PEACEFUL);
     }
@@ -114,47 +127,86 @@ public class ZombieApocalypseEvent extends GameEvent {
             return;
         }
 
-        if (currentWave >= totalWaves && !waveActive) {
-            end();
-            return;
-        }
+        if (waveActive) {
+            long waveElapsed = (System.currentTimeMillis() - waveStartTime) / 1000;
+            long waveDuration = 60;
 
-        long timeSinceLastWave = (System.currentTimeMillis() - lastWaveTime) / 1000;
+            if (waveElapsed >= waveDuration) {
+                waveActive = false;
+                stopWaveTask();
 
-        if (!waveActive && timeSinceLastWave >= 5) startNextWave();
+                broadcast("<green>✔ Волна " + currentWave + " завершена! " + "Убито зомби: " + zombiesKilled);
 
-        if (waveActive && zombiesAlive <= 0) {
-            waveActive = false;
-            lastWaveTime = System.currentTimeMillis();
-            broadcast("<green>Волна " + currentWave + " зачищена!</green>");
+                cleanupZombies();
 
-            zombiesPerWave += 2;
+                if (currentWave >= totalWaves) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (isActive()) end();
+                    }, 40L);
+                } else {
+                    betweenWaves = true;
+                    betweenWaveStart = System.currentTimeMillis();
+                    broadcast("<yellow>Следующая волна через 10 секунд... Подготовьтесь!");
+
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (isActive()) startNextWave();
+                    }, 200L);
+                }
+            }
         }
     }
 
     private void startNextWave() {
         currentWave++;
         waveActive = true;
-        zombiesKilledThisWave = 0;
+        betweenWaves = false;
+        waveStartTime = System.currentTimeMillis();
 
-        broadcast("<red><bold>⚔ Волна " + currentWave + "/" + totalWaves + "!</bold></red>");
-        broadcast("<gray>Зомби: <white>" + zombiesPerWave);
+        int zombiesPerSpawn;
+        int spawnIntervalTicks;
 
-        List<Player> players = getOnlinePlayers();
-        int zombiesPerPlayer = Math.max(1, zombiesPerWave / players.size());
+        switch (currentWave) {
+            case 1 -> {
+                zombiesPerSpawn = 2;
+                spawnIntervalTicks = 60;
+            }
+            case 2 -> {
+                zombiesPerSpawn = 3;
+                spawnIntervalTicks = 60;
+            }
+            default -> {
+                zombiesPerSpawn = 5;
+                spawnIntervalTicks = 40;
+            }
+        }
 
-        zombiesAlive = 0;
+        broadcast("<red><bold>⚔ ВОЛНА " + currentWave + "/" + totalWaves + "!</bold></red>");
+        broadcast("<gray>Зомби: <white>" + zombiesPerSpawn + "</white> каждые <white>" + (spawnIntervalTicks / 20) + "</white> сек | Длительность: <white>60 сек");
 
-        for (Player player : players) for (int i = 0; i < zombiesPerPlayer; i++) spawnZombie(player.getLocation(), currentWave);
+        for (Player p : getOnlinePlayers()) p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 0.5f);
 
-        for (Player p : players) p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.7f, 0.5f);
+        final int zombiesCount = zombiesPerSpawn;
+        waveSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!isActive() || !waveActive) {
+                stopWaveTask();
+                return;
+            }
+
+            for (UUID uuid : survivedPlayers) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player == null || !player.isOnline() || player.isDead()) continue;
+
+                for (int i = 0; i < zombiesCount; i++) spawnZombie(player.getLocation(), currentWave);
+            }
+
+        }, 20L, spawnIntervalTicks);
     }
 
     private void spawnZombie(Location near, int wave) {
         World world = near.getWorld();
 
         double angle = random.nextDouble() * 2 * Math.PI;
-        double dist = 15 + random.nextInt(11);
+        double dist = 12 + random.nextInt(11);
         int x = near.getBlockX() + (int) (Math.cos(angle) * dist);
         int z = near.getBlockZ() + (int) (Math.sin(angle) * dist);
 
@@ -164,10 +216,18 @@ public class ZombieApocalypseEvent extends GameEvent {
         Location spawnLoc = new Location(world, x + 0.5, y, z + 0.5);
 
         Zombie zombie;
-        if (wave >= 4 && random.nextInt(3) == 0) zombie = (Zombie) world.spawnEntity(spawnLoc, EntityType.HUSK);
+        if (wave >= 3 && random.nextInt(4) == 0) zombie = (Zombie) world.spawnEntity(spawnLoc, EntityType.HUSK);
+        else if (wave >= 2 && random.nextInt(5) == 0) zombie = (Zombie) world.spawnEntity(spawnLoc, EntityType.DROWNED);
         else zombie = (Zombie) world.spawnEntity(spawnLoc, EntityType.ZOMBIE);
 
-        double baseHealth = 20.0 + (wave * 5.0);
+
+        double baseHealth = switch (wave) {
+            case 1 -> 20.0;
+            case 2 -> 25.0;
+            case 3 -> 30.0;
+            default -> 20.0;
+        };
+
         var maxHealthAttr = zombie.getAttribute(Attribute.GENERIC_MAX_HEALTH);
         if (maxHealthAttr != null) {
             maxHealthAttr.setBaseValue(baseHealth);
@@ -175,16 +235,32 @@ public class ZombieApocalypseEvent extends GameEvent {
         }
 
         var speedAttr = zombie.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
-        if (speedAttr != null) speedAttr.setBaseValue(0.25 + (wave * 0.02));
+        if (speedAttr != null) {
+            double speed = switch (wave) {
+                case 1 -> 0.25;
+                case 2 -> 0.28;
+                case 3 -> 0.32;
+                default -> 0.25;
+            };
+            speedAttr.setBaseValue(speed);
+        }
 
         var dmgAttr = zombie.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE);
-        if (dmgAttr != null) dmgAttr.setBaseValue(3.0 + (wave * 1.5));
+        if (dmgAttr != null) {
+            double dmg = switch (wave) {
+                case 1 -> 3.0;
+                case 2 -> 5.0;
+                case 3 -> 7.0;
+                default -> 3.0;
+            };
+            dmgAttr.setBaseValue(dmg);
+        }
 
-        if (wave >= 3) {
+        if (wave >= 2) {
             zombie.getEquipment().setHelmet(new ItemStack(Material.IRON_HELMET));
             zombie.getEquipment().setHelmetDropChance(0.0f);
         }
-        if (wave >= 5) {
+        if (wave >= 3) {
             zombie.getEquipment().setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
             zombie.getEquipment().setChestplateDropChance(0.0f);
             zombie.getEquipment().setItemInMainHand(new ItemStack(Material.IRON_SWORD));
@@ -194,8 +270,10 @@ public class ZombieApocalypseEvent extends GameEvent {
         zombie.setShouldBurnInDay(false);
         zombie.setRemoveWhenFarAway(false);
 
+        zombie.customName(mm.deserialize("<red>Зомби <gray>[Волна " + wave + "]"));
+        zombie.setCustomNameVisible(false);
+
         spawnedZombies.add(zombie.getUniqueId());
-        zombiesAlive++;
     }
 
     @EventHandler
@@ -204,20 +282,32 @@ public class ZombieApocalypseEvent extends GameEvent {
 
         UUID entityId = event.getEntity().getUniqueId();
         if (spawnedZombies.remove(entityId)) {
-            zombiesAlive = Math.max(0, zombiesAlive - 1);
-            zombiesKilledThisWave++;
+            zombiesKilled++;
 
             event.getDrops().clear();
             event.setDroppedExp(0);
         }
     }
 
+    @EventHandler
+    public void onPlayerDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
+        if (!isActive()) return;
+        Player player = event.getEntity();
+        if (survivedPlayers.remove(player.getUniqueId())) broadcast("<red>💀 " + player.getName() + " пал в бою!");
+    }
+
+    private void stopWaveTask() {
+        if (waveSpawnTask != null) {
+            waveSpawnTask.cancel();
+            waveSpawnTask = null;
+        }
+    }
+
     private void cleanupZombies() {
         if (session == null || session.getArenaWorld() == null) return;
 
-        for (Entity entity : session.getArenaWorld().getEntities()) if (entity instanceof Zombie && spawnedZombies.contains(entity.getUniqueId())) entity.remove();
-
+        for (Entity entity : session.getArenaWorld().getEntities())
+            if (entity instanceof Zombie && spawnedZombies.contains(entity.getUniqueId())) entity.remove();
         spawnedZombies.clear();
-        zombiesAlive = 0;
     }
 }

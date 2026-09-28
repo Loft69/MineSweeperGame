@@ -1,6 +1,11 @@
 package com.axon.findgame.command;
 
 import com.axon.findgame.FindGame;
+import com.axon.findgame.manager.GameManager;
+import com.axon.findgame.manager.event.EventManager;
+import com.axon.findgame.manager.event.GameEvent;
+import com.axon.findgame.manager.event.GameEventType;
+import com.axon.findgame.model.GameSession;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -67,6 +72,35 @@ public class FindGameCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(plugin.msg("reloaded"));
             }
             case "help" -> sendHelp(sender);
+            case "event" -> {
+                if (args.length != 2) {
+                    return false;
+                }
+
+                GameManager gameManager = plugin.getGameManager();
+                GameSession gameSession = gameManager.getCurrentSession();
+                if (gameSession == null || !gameSession.isActive()) {
+                    sender.sendMessage("Игра не запущена");
+                    return false;
+                }
+
+                String arg = args[1];
+
+                EventManager eventManager = plugin.getEventManager();
+
+                GameEvent gameEvent = eventManager.getActiveEvent();
+                if (gameEvent != null && gameEvent.isActive()) {
+                    gameEvent.forceEnd();
+                }
+
+                GameEventType event = eventManager.getRegisteredType(arg);
+                if (event == null) {
+                    sender.sendMessage("Такого ивента нет");
+                    return false;
+                }
+
+                eventManager.startEvent(gameSession, event);
+            }
             default -> sender.sendMessage(mm.deserialize("<red>Неизвестная подкоманда! /fg help"));
         }
 
@@ -98,8 +132,13 @@ public class FindGameCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             List<String> subs = new ArrayList<>();
             subs.add("help");
-            if (sender.hasPermission("findgame.admin")) subs.addAll(List.of("start", "stop", "reload"));
+            if (sender.hasPermission("findgame.admin")) subs.addAll(List.of("start", "stop", "reload", "event"));
             for (String sub : subs) if (sub.startsWith(args[0].toLowerCase())) completions.add(sub);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("event")) {
+            EventManager eventManager = plugin.getEventManager();
+            List<String> ids = eventManager.getRegisteredTypesId();
+            for (String id : ids) if (id.startsWith(args[1].toLowerCase())) completions.add(id);
         }
         return completions;
     }
